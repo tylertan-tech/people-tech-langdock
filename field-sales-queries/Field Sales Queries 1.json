@@ -1,0 +1,366 @@
+{
+  "schema": "ldwf",
+  "version": 1,
+  "name": "Field Sales Queries 1",
+  "meta": {
+    "exportedAt": "2026-04-28T08:14:24.187Z",
+    "exporter": "client"
+  },
+  "graph": {
+    "nodes": [
+      {
+        "type": "action",
+        "data": {
+          "executionId": null,
+          "errorHandling": {
+            "strategy": "stop"
+          },
+          "disabled": false,
+          "slug": "replyToMessage",
+          "name": "Reply to message",
+          "actionId": "63a29b97-9b83-4182-98c7-2f6bac44e52f",
+          "config": {
+            "connectionId": null,
+            "requiresConfirmation": false,
+            "modelId": null,
+            "fields": {
+              "text": {
+                "mode": "manual",
+                "value": "✅ Jira ticket created: <https://people-team.atlassian.net/browse/{{createTask.output.key}}|{{createTask.output.key}}>. I'll update this thread when it's resolved.",
+                "prompt": null
+              },
+              "threadTs": {
+                "mode": "manual",
+                "value": "{{newMessageInChannel.output.ts}}",
+                "prompt": null
+              },
+              "channelId": {
+                "mode": "manual",
+                "value": "C0AEAG522T0",
+                "prompt": null
+              }
+            }
+          }
+        },
+        "id": "ed1e5967-c7c9-43c0-9977-555c0ab675a6",
+        "position": {
+          "x": 3196,
+          "y": 20
+        }
+      },
+      {
+        "type": "agent",
+        "data": {
+          "executionId": null,
+          "errorHandling": {
+            "strategy": "stop"
+          },
+          "disabled": false,
+          "slug": "extractAccountId",
+          "mode": "create",
+          "name": "Match Jira user",
+          "prompt": {
+            "mode": "manual",
+            "value": "You are given the name of a person who submitted a request: \"{{code.output.submitted_by_name}}\"\n\nBelow is a list of Jira users returned by a search:\n{{jiraFindUsers.output.results}}\n\nEach user has a `displayName` and `emailAddress`. Your job is to find the user who best matches the submitted name. Prefer users whose email contains the person's last name (e.g. if the name is \"Peter Crowder\", prefer peter.crowder@sumup.com). Prioritise @sumup.com email addresses over personal emails. Return only the `accountId` of the best matching user."
+          },
+          "attachmentIds": [],
+          "output": "structured",
+          "connectionOverrides": {},
+          "outputSchema": [
+            {
+              "id": "6b222c23-a0fb-496e-845f-9b862731d8d8",
+              "name": "accountId",
+              "description": "The Jira accountId of the best matching user",
+              "type": "string",
+              "required": true
+            }
+          ],
+          "modelId": "bf3d12e6-fbf8-49d5-a8a8-a2387fc5fed4",
+          "tools": [],
+          "maxSteps": 3
+        },
+        "id": "f96b08c1-89c4-4ce4-8ec1-cbaae8c42d82",
+        "position": {
+          "x": 2124,
+          "y": 210
+        }
+      },
+      {
+        "type": "code",
+        "data": {
+          "executionId": null,
+          "errorHandling": {
+            "strategy": "stop"
+          },
+          "disabled": false,
+          "name": "Code",
+          "slug": "code",
+          "language": "javascript",
+          "code": "function extractSlackListData(payload) {\n  const attachment = payload.attachments?.[0];\n  const fields = attachment?.list_record?.record?.fields || [];\n  const schema = attachment?.list_record?.schema || [];\n\n  const result = {};\n\n  fields.forEach(field => {\n    const schemaItem = schema.find(s => s.key === field.key);\n    if (!schemaItem) return;\n\n    const name = schemaItem.name.toLowerCase().replace(/\\s+/g, \"_\");\n\n    if (field.text) {\n      result[name] = field.text;\n    } else if (field.value && schemaItem.options?.choices) {\n      const choice = schemaItem.options.choices.find(c => c.value === field.value);\n      result[name] = choice ? choice.label : field.value;\n    } else if (field.user) {\n      result[name] = field.user[0];\n    } else if (field.timestamp) {\n      result[name] = new Date(field.timestamp[0] * 1000).toISOString();\n    } else if (field.checkbox !== undefined) {\n      result[name] = field.checkbox;\n    }\n  });\n\n  const text = payload.text || \"\";\n  const mentionMatch = text.match(/^@([^\\(]+)\\s*\\(/);\n  if (mentionMatch) {\n    result.submitted_by_name = mentionMatch[1].trim();\n  }\n\n  return result;\n}\n\nreturn extractSlackListData(newMessageInChannel.output);"
+        },
+        "id": "8c90ab39-1a48-4be7-b3d2-427e2e8284e6",
+        "position": {
+          "x": 1052,
+          "y": 210
+        }
+      },
+      {
+        "type": "trigger",
+        "data": {
+          "executionId": null,
+          "errorHandling": {
+            "strategy": "stop"
+          },
+          "disabled": false,
+          "slug": "newMessageInChannel",
+          "kind": "integration",
+          "integrationId": "1f75a6d6-5719-41fb-81e2-a299f0cef537",
+          "triggerId": "5f6b7999-a677-4878-a952-d253de885876",
+          "connectionId": null,
+          "params": [
+            {
+              "key": "channelId",
+              "value": "C0AEAG522T0"
+            }
+          ]
+        },
+        "id": "a350bfcd-c560-4486-8d64-0ec02424a2e2",
+        "position": {
+          "x": 10,
+          "y": 210
+        }
+      },
+      {
+        "type": "action",
+        "data": {
+          "executionId": null,
+          "errorHandling": {
+            "strategy": "stop"
+          },
+          "disabled": false,
+          "slug": "logToSheets",
+          "name": "Log ticket to Google Sheets",
+          "actionId": "8ce737ff-daef-4cde-b858-7540a24c7b04",
+          "config": {
+            "connectionId": null,
+            "requiresConfirmation": false,
+            "modelId": "bf3d12e6-fbf8-49d5-a8a8-a2387fc5fed4",
+            "fields": {
+              "range": {
+                "mode": "manual",
+                "value": "Sheet1"
+              },
+              "valueInput": {
+                "mode": "prompt",
+                "prompt": "Build a 2D array (array of arrays) with exactly one inner array containing these 5 values in order:\n1. The Jira ticket key from createTask (e.g. WOR-123)\n2. The Slack message timestamp (ts) from newMessageInChannel\n3. The string literal 'C0AEAG522T0'\n4. The string literal 'Open'\n5. The submitted_by field from code (the Slack user ID of the requester, e.g. U07171QC9U4)\n\nReturn only the 2D array, e.g. [[\"WOR-123\", \"1776761636.392269\", \"C0AEAG522T0\", \"Open\", \"U07171QC9U4\"]]"
+              },
+              "spreadsheetId": {
+                "mode": "manual",
+                "value": "1jnhL-Ck1jgSaBKn13k7D_dw2yDnfIvBZBnmLb2Uz9xA"
+              }
+            }
+          }
+        },
+        "id": "93a3161f-c718-4db0-a86c-3eda45c3d141",
+        "position": {
+          "x": 3195,
+          "y": 510
+        }
+      },
+      {
+        "type": "action",
+        "data": {
+          "executionId": null,
+          "errorHandling": {
+            "strategy": "stop"
+          },
+          "disabled": false,
+          "slug": "jiraFindUsers",
+          "name": "Find Jira user",
+          "actionId": "49b79a22-1428-448e-b557-47563feaf13c",
+          "config": {
+            "connectionId": null,
+            "requiresConfirmation": false,
+            "modelId": "bf3d12e6-fbf8-49d5-a8a8-a2387fc5fed4",
+            "fields": {
+              "query": {
+                "mode": "manual",
+                "value": "{{code.output.submitted_by_name}}",
+                "prompt": null
+              }
+            }
+          }
+        },
+        "id": "9c539472-1e46-45fd-b856-4cc1312f8c78",
+        "position": {
+          "x": 1580,
+          "y": 210
+        }
+      },
+      {
+        "type": "condition",
+        "data": {
+          "executionId": null,
+          "errorHandling": {
+            "strategy": "stop"
+          },
+          "disabled": false,
+          "name": "Only bot messages",
+          "slug": "onlyBotMessages",
+          "mode": "manual",
+          "outputMode": "single",
+          "modelId": "bf3d12e6-fbf8-49d5-a8a8-a2387fc5fed4",
+          "forceSelectBranch": false,
+          "conditions": [
+            {
+              "id": "dc1f20e6-ade9-4ca7-86f7-e57ad14db891",
+              "name": "Bot message",
+              "value": "{{newMessageInChannel.output?.subtype === 'bot_message' && newMessageInChannel.output?.text?.includes('filed')}}",
+              "prompt": null
+            }
+          ]
+        },
+        "id": "667f75de-4c17-41e2-a921-f84c41fee7ab",
+        "position": {
+          "x": 524,
+          "y": 210
+        }
+      },
+      {
+        "type": "action",
+        "data": {
+          "executionId": null,
+          "errorHandling": {
+            "strategy": "stop"
+          },
+          "disabled": false,
+          "slug": "createTask",
+          "name": "Create task",
+          "actionId": "5a1d92f5-1c97-42f1-96ef-03cebf925fb1",
+          "config": {
+            "connectionId": null,
+            "requiresConfirmation": false,
+            "modelId": "bf3d12e6-fbf8-49d5-a8a8-a2387fc5fed4",
+            "fields": {
+              "labels": {
+                "mode": "none"
+              },
+              "dueDate": {
+                "mode": "none"
+              },
+              "summary": {
+                "mode": "manual",
+                "value": "{{code.output.request}} - #field-sales-queries"
+              },
+              "parentKey": {
+                "mode": "none"
+              },
+              "assigneeId": {
+                "mode": "none"
+              },
+              "priorityId": {
+                "mode": "manual",
+                "value": "1"
+              },
+              "projectKey": {
+                "mode": "manual",
+                "value": "WOR"
+              },
+              "reporterId": {
+                "mode": "manual",
+                "value": "{{extractAccountId.output.structured.accountid}}"
+              },
+              "description": {
+                "mode": "manual",
+                "value": "{{code.output.details}}\n\n---\n_slack_thread_ts:{{newMessageInChannel.output.ts}}_"
+              },
+              "issueTypeId": {
+                "mode": "manual",
+                "value": "10004"
+              },
+              "componentIds": {
+                "mode": "none"
+              },
+              "customFields": {
+                "mode": "none"
+              },
+              "fixVersionIds": {
+                "mode": "none"
+              }
+            }
+          }
+        },
+        "id": "d496d6f0-0d5c-4e2f-a193-b1f972e560dc",
+        "position": {
+          "x": 2668,
+          "y": 210
+        }
+      }
+    ],
+    "edges": [
+      {
+        "id": "a6134bf7-554e-44cb-b1bf-179352bf30c3",
+        "source": "d496d6f0-0d5c-4e2f-a193-b1f972e560dc",
+        "target": "ed1e5967-c7c9-43c0-9977-555c0ab675a6",
+        "animated": false,
+        "sourceHandle": "output-success",
+        "targetHandle": "input-default",
+        "conditionId": null
+      },
+      {
+        "id": "45a02f22-6b61-413c-bd5d-b0ed20cea88a",
+        "source": "8c90ab39-1a48-4be7-b3d2-427e2e8284e6",
+        "target": "9c539472-1e46-45fd-b856-4cc1312f8c78",
+        "animated": false,
+        "sourceHandle": "output-success",
+        "targetHandle": "input-default",
+        "conditionId": null
+      },
+      {
+        "id": "4d71a34a-6664-423c-9fe9-2741e7a541f7",
+        "source": "d496d6f0-0d5c-4e2f-a193-b1f972e560dc",
+        "target": "93a3161f-c718-4db0-a86c-3eda45c3d141",
+        "animated": false,
+        "sourceHandle": "output-success",
+        "targetHandle": "input-default",
+        "conditionId": null
+      },
+      {
+        "id": "79edfe12-3413-44bb-8792-e89bef7dece7",
+        "source": "f96b08c1-89c4-4ce4-8ec1-cbaae8c42d82",
+        "target": "d496d6f0-0d5c-4e2f-a193-b1f972e560dc",
+        "animated": false,
+        "sourceHandle": "output-success",
+        "targetHandle": "input-default",
+        "conditionId": null
+      },
+      {
+        "id": "261ac2eb-73aa-4b74-b087-233c18cdd0bd",
+        "source": "667f75de-4c17-41e2-a921-f84c41fee7ab",
+        "target": "8c90ab39-1a48-4be7-b3d2-427e2e8284e6",
+        "animated": false,
+        "sourceHandle": "output-condition",
+        "targetHandle": "input-default",
+        "conditionId": "dc1f20e6-ade9-4ca7-86f7-e57ad14db891"
+      },
+      {
+        "id": "98b67c1d-dc69-4058-9873-85b9f4d020a1",
+        "source": "a350bfcd-c560-4486-8d64-0ec02424a2e2",
+        "target": "667f75de-4c17-41e2-a921-f84c41fee7ab",
+        "animated": false,
+        "sourceHandle": "output-success",
+        "targetHandle": "input-default",
+        "conditionId": null
+      },
+      {
+        "id": "f59095c0-0e04-49fc-9fd7-d9da7fc3efab",
+        "source": "9c539472-1e46-45fd-b856-4cc1312f8c78",
+        "target": "f96b08c1-89c4-4ce4-8ec1-cbaae8c42d82",
+        "animated": false,
+        "sourceHandle": "output-success",
+        "targetHandle": "input-default",
+        "conditionId": null
+      }
+    ]
+  }
+}
