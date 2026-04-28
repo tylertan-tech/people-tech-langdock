@@ -1,0 +1,366 @@
+{
+  "schema": "ldwf",
+  "version": 1,
+  "name": "Field Sales Queries 2",
+  "meta": {
+    "exportedAt": "2026-04-28T08:16:10.492Z",
+    "exporter": "client"
+  },
+  "graph": {
+    "nodes": [
+      {
+        "type": "action",
+        "data": {
+          "executionId": null,
+          "errorHandling": {
+            "strategy": "stop"
+          },
+          "disabled": false,
+          "slug": "getJiraIssue",
+          "name": "Get Jira issue status",
+          "actionId": "a6d0cba1-4767-4c01-81e6-a5a06976addf",
+          "config": {
+            "connectionId": null,
+            "requiresConfirmation": false,
+            "modelId": "bf3d12e6-fbf8-49d5-a8a8-a2387fc5fed4",
+            "fields": {
+              "issueId": {
+                "mode": "manual",
+                "value": "{{ticketLoop.output.currentItem[0]}}"
+              }
+            }
+          }
+        },
+        "id": "171c78f9-5a57-4043-97eb-fd75e5b4263c",
+        "position": {
+          "x": 1580,
+          "y": 117.5
+        }
+      },
+      {
+        "type": "trigger",
+        "data": {
+          "executionId": null,
+          "errorHandling": {
+            "strategy": "stop"
+          },
+          "disabled": false,
+          "slug": "scheduledTrigger",
+          "name": "Every 15 minutes",
+          "kind": "scheduled",
+          "cron": "*/15 * * * *"
+        },
+        "id": "c3514438-2b17-41e6-8d8c-a6744416619a",
+        "position": {
+          "x": 10,
+          "y": 117.5
+        }
+      },
+      {
+        "type": "loop_end",
+        "data": {
+          "executionId": null,
+          "errorHandling": {
+            "strategy": "continue"
+          },
+          "disabled": false,
+          "name": "Loop end",
+          "slug": "ticketLoopEnd",
+          "loopEndSlug": "ticketLoop"
+        },
+        "id": "d4e86f6b-3599-41d6-8935-e51eac670270",
+        "position": {
+          "x": 4212,
+          "y": 117.5
+        }
+      },
+      {
+        "type": "action",
+        "data": {
+          "executionId": null,
+          "errorHandling": {
+            "strategy": "stop"
+          },
+          "disabled": false,
+          "slug": "getSheetRows",
+          "name": "Get open Jira tickets from sheet",
+          "actionId": "e3413ab0-7209-475e-8340-edc50dd67845",
+          "config": {
+            "connectionId": null,
+            "requiresConfirmation": false,
+            "modelId": null,
+            "fields": {
+              "sheetAndRange": {
+                "mode": "manual",
+                "value": "Sheet1"
+              },
+              "spreadsheetId": {
+                "mode": "manual",
+                "value": "1jnhL-Ck1jgSaBKn13k7D_dw2yDnfIvBZBnmLb2Uz9xA"
+              }
+            }
+          }
+        },
+        "id": "cebae2c6-ba34-45ff-b14f-2f57e3689092",
+        "position": {
+          "x": 524,
+          "y": 117.5
+        }
+      },
+      {
+        "type": "action",
+        "data": {
+          "executionId": null,
+          "errorHandling": {
+            "strategy": "stop"
+          },
+          "disabled": false,
+          "slug": "updateSheetRow",
+          "name": "Delete row from sheet",
+          "actionId": "a883ea4c-6cf5-4ca6-8670-30bc5ea2f1cd",
+          "config": {
+            "connectionId": null,
+            "requiresConfirmation": false,
+            "modelId": null,
+            "fields": {
+              "sheetId": {
+                "mode": "manual",
+                "value": "{{ 0 }}"
+              },
+              "spreadsheetId": {
+                "mode": "manual",
+                "value": "1jnhL-Ck1jgSaBKn13k7D_dw2yDnfIvBZBnmLb2Uz9xA"
+              },
+              "rowRangeEndIndex": {
+                "mode": "manual",
+                "value": "{{ ticketLoop.output.currentItem[5] }}"
+              },
+              "rowRangeStartIndex": {
+                "mode": "manual",
+                "value": "{{ ticketLoop.output.currentItem[5] - 1 }}"
+              }
+            }
+          }
+        },
+        "id": "763d75b2-ddb2-4475-b181-a03863463ced",
+        "position": {
+          "x": 3684,
+          "y": 20
+        }
+      },
+      {
+        "type": "action",
+        "data": {
+          "executionId": null,
+          "errorHandling": {
+            "strategy": "stop"
+          },
+          "disabled": false,
+          "slug": "appendToSheet2",
+          "name": "Append ticket to Sheet2",
+          "actionId": "8ce737ff-daef-4cde-b858-7540a24c7b04",
+          "config": {
+            "connectionId": null,
+            "requiresConfirmation": false,
+            "modelId": "bf3d12e6-fbf8-49d5-a8a8-a2387fc5fed4",
+            "fields": {
+              "range": {
+                "mode": "manual",
+                "value": "Sheet2"
+              },
+              "valueInput": {
+                "mode": "prompt",
+                "prompt": "Build a 2D array (array of arrays) with exactly one row, containing these 5 values in order: index 0 (ticket key) from ticketLoop.output.currentItem[0], index 1 (Slack thread TS) from ticketLoop.output.currentItem[1], index 2 (Slack channel) from ticketLoop.output.currentItem[2], the hardcoded string \"Closed\" as the status, and index 4 (summary) from ticketLoop.output.currentItem[4]. Example format: [[\"PROJ-1\", \"12345.678\", \"C123\", \"Closed\", \"Fix bug\"]]"
+              },
+              "spreadsheetId": {
+                "mode": "manual",
+                "value": "1jnhL-Ck1jgSaBKn13k7D_dw2yDnfIvBZBnmLb2Uz9xA"
+              }
+            }
+          }
+        },
+        "id": "b98a0020-e92c-463d-9810-cc90413e45fc",
+        "position": {
+          "x": 3160,
+          "y": 117.5
+        }
+      },
+      {
+        "type": "condition",
+        "data": {
+          "executionId": null,
+          "errorHandling": {
+            "strategy": "stop"
+          },
+          "disabled": false,
+          "name": "Is ticket Done?",
+          "slug": "isTicketDone",
+          "mode": "prompt",
+          "outputMode": "single",
+          "modelId": "bf3d12e6-fbf8-49d5-a8a8-a2387fc5fed4",
+          "forceSelectBranch": false,
+          "conditions": [
+            {
+              "id": "f64a2137-78b9-4eab-8cd2-b45f6092bd9e",
+              "name": "Ticket is Done",
+              "value": null,
+              "prompt": "The Jira issue status is 'Done' or 'Closed'. Check {{getJiraIssue.output}} for the status field."
+            },
+            {
+              "id": "b4352abb-f869-468f-a785-f96892fd12a8",
+              "name": "Ticket is not Done",
+              "value": null,
+              "prompt": "The Jira issue status is NOT 'Done' or 'Closed'. The ticket is still in progress."
+            }
+          ]
+        },
+        "id": "d53567af-71ce-4c81-b5bf-b061b3e9ffca",
+        "position": {
+          "x": 2108,
+          "y": 117.5
+        }
+      },
+      {
+        "type": "action",
+        "data": {
+          "executionId": null,
+          "errorHandling": {
+            "strategy": "stop"
+          },
+          "disabled": false,
+          "slug": "replyToSlackThread",
+          "name": "Reply in Slack thread",
+          "actionId": "63a29b97-9b83-4182-98c7-2f6bac44e52f",
+          "config": {
+            "connectionId": null,
+            "requiresConfirmation": false,
+            "modelId": null,
+            "fields": {
+              "text": {
+                "mode": "manual",
+                "value": "✅ Your Jira ticket ({{ticketLoop.output.currentItem[0]}}) has been completed! Let us know if you have any questions."
+              },
+              "threadTs": {
+                "mode": "manual",
+                "value": "{{ticketLoop.output.currentItem[1]}}"
+              },
+              "channelId": {
+                "mode": "manual",
+                "value": "{{ticketLoop.output.currentItem[2]}}"
+              }
+            }
+          }
+        },
+        "id": "777ee5fb-a235-4a79-a008-67e2f7f6a7ec",
+        "position": {
+          "x": 2636,
+          "y": 20
+        }
+      },
+      {
+        "type": "loop",
+        "data": {
+          "executionId": null,
+          "errorHandling": {
+            "strategy": "stop"
+          },
+          "disabled": false,
+          "name": "Loop over tickets",
+          "slug": "ticketLoop",
+          "loopArrayValue": "{{getSheetRows.output.values.slice(1).map((row, i) => [...row, i + 2]).filter(row => row[3] === 'Open')}}",
+          "maxIterations": 200,
+          "concurrency": false,
+          "collectOutputs": false
+        },
+        "id": "0a828eab-6d9a-4dea-b171-3fb84ea446ac",
+        "position": {
+          "x": 1052,
+          "y": 117.5
+        }
+      }
+    ],
+    "edges": [
+      {
+        "id": "a47e01bb-0372-4a69-b0ba-4878a7d74e35",
+        "source": "777ee5fb-a235-4a79-a008-67e2f7f6a7ec",
+        "target": "b98a0020-e92c-463d-9810-cc90413e45fc",
+        "animated": false,
+        "sourceHandle": "output-success",
+        "targetHandle": "input-default",
+        "conditionId": null
+      },
+      {
+        "id": "4f9a1c0e-9f03-40eb-8a68-96110dbdacbc",
+        "source": "171c78f9-5a57-4043-97eb-fd75e5b4263c",
+        "target": "d53567af-71ce-4c81-b5bf-b061b3e9ffca",
+        "animated": false,
+        "sourceHandle": "output-success",
+        "targetHandle": "input-default",
+        "conditionId": null
+      },
+      {
+        "id": "0c9683ad-1ee2-44c8-95e9-a3c1a75b629d",
+        "source": "b98a0020-e92c-463d-9810-cc90413e45fc",
+        "target": "763d75b2-ddb2-4475-b181-a03863463ced",
+        "animated": false,
+        "sourceHandle": "output-success",
+        "targetHandle": "input-default",
+        "conditionId": null
+      },
+      {
+        "id": "2292a311-ecf6-4a3f-82c4-4a6ef2961823",
+        "source": "0a828eab-6d9a-4dea-b171-3fb84ea446ac",
+        "target": "171c78f9-5a57-4043-97eb-fd75e5b4263c",
+        "animated": false,
+        "sourceHandle": "output-success",
+        "targetHandle": "input-default",
+        "conditionId": null
+      },
+      {
+        "id": "c9d22b1a-eb4a-4d31-a8c0-ee0c9b09a6c4",
+        "source": "d53567af-71ce-4c81-b5bf-b061b3e9ffca",
+        "target": "d4e86f6b-3599-41d6-8935-e51eac670270",
+        "animated": false,
+        "sourceHandle": "output-condition",
+        "targetHandle": "input-default",
+        "conditionId": "b4352abb-f869-468f-a785-f96892fd12a8"
+      },
+      {
+        "id": "f321902e-b368-408c-bb22-144b748b6e8c",
+        "source": "c3514438-2b17-41e6-8d8c-a6744416619a",
+        "target": "cebae2c6-ba34-45ff-b14f-2f57e3689092",
+        "animated": false,
+        "sourceHandle": "output-success",
+        "targetHandle": "input-default",
+        "conditionId": null
+      },
+      {
+        "id": "be3158a1-22c4-465a-b5a7-05c45ce3c71e",
+        "source": "763d75b2-ddb2-4475-b181-a03863463ced",
+        "target": "d4e86f6b-3599-41d6-8935-e51eac670270",
+        "animated": false,
+        "sourceHandle": "output-success",
+        "targetHandle": "input-default",
+        "conditionId": null
+      },
+      {
+        "id": "fb7a322d-a044-450e-b842-b5eb6c810dac",
+        "source": "d53567af-71ce-4c81-b5bf-b061b3e9ffca",
+        "target": "777ee5fb-a235-4a79-a008-67e2f7f6a7ec",
+        "animated": false,
+        "sourceHandle": "output-condition",
+        "targetHandle": "input-default",
+        "conditionId": "f64a2137-78b9-4eab-8cd2-b45f6092bd9e"
+      },
+      {
+        "id": "84c8ef11-eb9b-4022-bdc0-92e87954e04b",
+        "source": "cebae2c6-ba34-45ff-b14f-2f57e3689092",
+        "target": "0a828eab-6d9a-4dea-b171-3fb84ea446ac",
+        "animated": false,
+        "sourceHandle": "output-success",
+        "targetHandle": "input-default",
+        "conditionId": null
+      }
+    ]
+  }
+}
