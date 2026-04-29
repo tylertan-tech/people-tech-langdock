@@ -2,11 +2,13 @@
 
 Langdock workflow exports (`schema: ldwf`) for turning Slack field-sales list submissions into Jira tickets, tracking them in Google Sheets, and closing the loop in Slack when issues are done.
 
-**Related links** (also in `links.md`):
+**Related links** (mirrors `links.md`):
 
-- Workflow 1 (editor): https://app.langdock.com/workflows/aab23b86-4776-48b4-80fd-83a487baf3f5  
-- Workflow 2 (editor): https://app.langdock.com/workflows/5d189d89-f130-46e5-8cf9-c7563e21086a  
+- **Google Sheet** (shared tracker): https://docs.google.com/spreadsheets/d/1jnhL-Ck1jgSaBKn13k7D_dw2yDnfIvBZBnmLb2Uz9xA/edit?usp=sharing  
+- Workflow 1 (Langdock editor): https://app.langdock.com/workflows/aab23b86-4776-48b4-80fd-83a487baf3f5  
+- Workflow 2 (Langdock editor): https://app.langdock.com/workflows/5d189d89-f130-46e5-8cf9-c7563e21086a  
 - Jira Automation (WOR project): https://people-team.atlassian.net/jira/servicedesk/projects/WOR/settings/automate#/rule/019dd89a-e393-7de4-9c24-2cf9c7780548  
+- Jira board / sample issue (PSE): https://people-team.atlassian.net/jira/software/projects/PSE/boards/73?selectedIssue=PSE-1  
 
 Exports in this folder were last saved on **2026-04-29** (see `meta.exportedAt` in each JSON file).
 
@@ -19,7 +21,7 @@ Exports in this folder were last saved on **2026-04-29** (see `meta.exportedAt` 
 | `Field Sales Queries 1.json` | **Ingestion** — Slack list submission → Jira ticket + **Sheet1** row (`Open`) + confirmation reply. |
 | `Field Sales Queries 2.json` | **Reconciliation** — On a schedule, reads **Sheet1**, checks Jira for each **Open** row; when status is **Done** or **Closed**, notifies the Slack thread, archives a row on **Sheet2**, and removes the row from **Sheet1**. |
 
-The workflows do not invoke each other in Langdock. They share the same **spreadsheet** (`1jnhL-Ck1jgSaBKn13k7D_dw2yDnfIvBZBnmLb2Uz9xA`) and the same **Sheet1** column layout so Workflow 2 can consume what Workflow 1 writes.
+The workflows do not invoke each other in Langdock. They share the same **spreadsheet** (ID `1jnhL-Ck1jgSaBKn13k7D_dw2yDnfIvBZBnmLb2Uz9xA`; open in browser via the link above) and the same **Sheet1** column layout so Workflow 2 can consume what Workflow 1 writes.
 
 ```mermaid
 flowchart TB
