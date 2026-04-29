@@ -3,200 +3,11 @@
   "version": 1,
   "name": "Field Sales Queries 1",
   "meta": {
-    "exportedAt": "2026-04-28T08:14:24.187Z",
+    "exportedAt": "2026-04-29T13:03:23.674Z",
     "exporter": "client"
   },
   "graph": {
     "nodes": [
-      {
-        "type": "action",
-        "data": {
-          "executionId": null,
-          "errorHandling": {
-            "strategy": "stop"
-          },
-          "disabled": false,
-          "slug": "replyToMessage",
-          "name": "Reply to message",
-          "actionId": "63a29b97-9b83-4182-98c7-2f6bac44e52f",
-          "config": {
-            "connectionId": null,
-            "requiresConfirmation": false,
-            "modelId": null,
-            "fields": {
-              "text": {
-                "mode": "manual",
-                "value": "✅ Jira ticket created: <https://people-team.atlassian.net/browse/{{createTask.output.key}}|{{createTask.output.key}}>. I'll update this thread when it's resolved.",
-                "prompt": null
-              },
-              "threadTs": {
-                "mode": "manual",
-                "value": "{{newMessageInChannel.output.ts}}",
-                "prompt": null
-              },
-              "channelId": {
-                "mode": "manual",
-                "value": "C0AEAG522T0",
-                "prompt": null
-              }
-            }
-          }
-        },
-        "id": "ed1e5967-c7c9-43c0-9977-555c0ab675a6",
-        "position": {
-          "x": 3196,
-          "y": 20
-        }
-      },
-      {
-        "type": "agent",
-        "data": {
-          "executionId": null,
-          "errorHandling": {
-            "strategy": "stop"
-          },
-          "disabled": false,
-          "slug": "extractAccountId",
-          "mode": "create",
-          "name": "Match Jira user",
-          "prompt": {
-            "mode": "manual",
-            "value": "You are given the name of a person who submitted a request: \"{{code.output.submitted_by_name}}\"\n\nBelow is a list of Jira users returned by a search:\n{{jiraFindUsers.output.results}}\n\nEach user has a `displayName` and `emailAddress`. Your job is to find the user who best matches the submitted name. Prefer users whose email contains the person's last name (e.g. if the name is \"Peter Crowder\", prefer peter.crowder@sumup.com). Prioritise @sumup.com email addresses over personal emails. Return only the `accountId` of the best matching user."
-          },
-          "attachmentIds": [],
-          "output": "structured",
-          "connectionOverrides": {},
-          "outputSchema": [
-            {
-              "id": "6b222c23-a0fb-496e-845f-9b862731d8d8",
-              "name": "accountId",
-              "description": "The Jira accountId of the best matching user",
-              "type": "string",
-              "required": true
-            }
-          ],
-          "modelId": "bf3d12e6-fbf8-49d5-a8a8-a2387fc5fed4",
-          "tools": [],
-          "maxSteps": 3
-        },
-        "id": "f96b08c1-89c4-4ce4-8ec1-cbaae8c42d82",
-        "position": {
-          "x": 2124,
-          "y": 210
-        }
-      },
-      {
-        "type": "code",
-        "data": {
-          "executionId": null,
-          "errorHandling": {
-            "strategy": "stop"
-          },
-          "disabled": false,
-          "name": "Code",
-          "slug": "code",
-          "language": "javascript",
-          "code": "function extractSlackListData(payload) {\n  const attachment = payload.attachments?.[0];\n  const fields = attachment?.list_record?.record?.fields || [];\n  const schema = attachment?.list_record?.schema || [];\n\n  const result = {};\n\n  fields.forEach(field => {\n    const schemaItem = schema.find(s => s.key === field.key);\n    if (!schemaItem) return;\n\n    const name = schemaItem.name.toLowerCase().replace(/\\s+/g, \"_\");\n\n    if (field.text) {\n      result[name] = field.text;\n    } else if (field.value && schemaItem.options?.choices) {\n      const choice = schemaItem.options.choices.find(c => c.value === field.value);\n      result[name] = choice ? choice.label : field.value;\n    } else if (field.user) {\n      result[name] = field.user[0];\n    } else if (field.timestamp) {\n      result[name] = new Date(field.timestamp[0] * 1000).toISOString();\n    } else if (field.checkbox !== undefined) {\n      result[name] = field.checkbox;\n    }\n  });\n\n  const text = payload.text || \"\";\n  const mentionMatch = text.match(/^@([^\\(]+)\\s*\\(/);\n  if (mentionMatch) {\n    result.submitted_by_name = mentionMatch[1].trim();\n  }\n\n  return result;\n}\n\nreturn extractSlackListData(newMessageInChannel.output);"
-        },
-        "id": "8c90ab39-1a48-4be7-b3d2-427e2e8284e6",
-        "position": {
-          "x": 1052,
-          "y": 210
-        }
-      },
-      {
-        "type": "trigger",
-        "data": {
-          "executionId": null,
-          "errorHandling": {
-            "strategy": "stop"
-          },
-          "disabled": false,
-          "slug": "newMessageInChannel",
-          "kind": "integration",
-          "integrationId": "1f75a6d6-5719-41fb-81e2-a299f0cef537",
-          "triggerId": "5f6b7999-a677-4878-a952-d253de885876",
-          "connectionId": null,
-          "params": [
-            {
-              "key": "channelId",
-              "value": "C0AEAG522T0"
-            }
-          ]
-        },
-        "id": "a350bfcd-c560-4486-8d64-0ec02424a2e2",
-        "position": {
-          "x": 10,
-          "y": 210
-        }
-      },
-      {
-        "type": "action",
-        "data": {
-          "executionId": null,
-          "errorHandling": {
-            "strategy": "stop"
-          },
-          "disabled": false,
-          "slug": "logToSheets",
-          "name": "Log ticket to Google Sheets",
-          "actionId": "8ce737ff-daef-4cde-b858-7540a24c7b04",
-          "config": {
-            "connectionId": null,
-            "requiresConfirmation": false,
-            "modelId": "bf3d12e6-fbf8-49d5-a8a8-a2387fc5fed4",
-            "fields": {
-              "range": {
-                "mode": "manual",
-                "value": "Sheet1"
-              },
-              "valueInput": {
-                "mode": "prompt",
-                "prompt": "Build a 2D array (array of arrays) with exactly one inner array containing these 5 values in order:\n1. The Jira ticket key from createTask (e.g. WOR-123)\n2. The Slack message timestamp (ts) from newMessageInChannel\n3. The string literal 'C0AEAG522T0'\n4. The string literal 'Open'\n5. The submitted_by field from code (the Slack user ID of the requester, e.g. U07171QC9U4)\n\nReturn only the 2D array, e.g. [[\"WOR-123\", \"1776761636.392269\", \"C0AEAG522T0\", \"Open\", \"U07171QC9U4\"]]"
-              },
-              "spreadsheetId": {
-                "mode": "manual",
-                "value": "1jnhL-Ck1jgSaBKn13k7D_dw2yDnfIvBZBnmLb2Uz9xA"
-              }
-            }
-          }
-        },
-        "id": "93a3161f-c718-4db0-a86c-3eda45c3d141",
-        "position": {
-          "x": 3195,
-          "y": 510
-        }
-      },
-      {
-        "type": "action",
-        "data": {
-          "executionId": null,
-          "errorHandling": {
-            "strategy": "stop"
-          },
-          "disabled": false,
-          "slug": "jiraFindUsers",
-          "name": "Find Jira user",
-          "actionId": "49b79a22-1428-448e-b557-47563feaf13c",
-          "config": {
-            "connectionId": null,
-            "requiresConfirmation": false,
-            "modelId": "bf3d12e6-fbf8-49d5-a8a8-a2387fc5fed4",
-            "fields": {
-              "query": {
-                "mode": "manual",
-                "value": "{{code.output.submitted_by_name}}",
-                "prompt": null
-              }
-            }
-          }
-        },
-        "id": "9c539472-1e46-45fd-b856-4cc1312f8c78",
-        "position": {
-          "x": 1580,
-          "y": 210
-        }
-      },
       {
         "type": "condition",
         "data": {
@@ -223,7 +34,82 @@
         "id": "667f75de-4c17-41e2-a921-f84c41fee7ab",
         "position": {
           "x": 524,
-          "y": 210
+          "y": 117.5
+        }
+      },
+      {
+        "type": "agent",
+        "data": {
+          "executionId": null,
+          "errorHandling": {
+            "strategy": "stop"
+          },
+          "disabled": false,
+          "slug": "extractAccountId",
+          "mode": "create",
+          "name": "Match Jira user",
+          "prompt": {
+            "mode": "manual",
+            "value": "You are given the name of a person who submitted a request: \"{{code.output.submitted_by_name}}\"\n\nBelow is a list of Jira users returned by a search:\n{{jiraFindUsers.output.results}}\n\nEach user has a `displayName` and `emailAddress`. Your job is to find the user who best matches the submitted name. Prefer users whose email contains the person's last name (e.g. if the name is \"Peter Crowder\", prefer peter.crowder@sumup.com). Prioritise @sumup.com email addresses over personal emails.\n\nReturn ONLY the raw `accountId` string of the best matching user in the `accountid` output field. Do not include backticks, quotes, or any other formatting — just the plain accountId value."
+          },
+          "attachmentIds": [],
+          "output": "structured",
+          "connectionOverrides": {},
+          "outputSchema": [
+            {
+              "id": "6b222c23-a0fb-496e-845f-9b862731d8d8",
+              "name": "accountid",
+              "description": "The Jira accountId of the best matching user. Must be the raw accountId string only — no formatting, no backticks, no quotes.",
+              "type": "string",
+              "required": true
+            }
+          ],
+          "modelId": "bf3d12e6-fbf8-49d5-a8a8-a2387fc5fed4",
+          "tools": [],
+          "maxSteps": 3
+        },
+        "id": "f96b08c1-89c4-4ce4-8ec1-cbaae8c42d82",
+        "position": {
+          "x": 2124,
+          "y": 117.5
+        }
+      },
+      {
+        "type": "delay",
+        "data": {
+          "executionId": null,
+          "errorHandling": {
+            "strategy": "stop"
+          },
+          "disabled": false,
+          "name": "Delay",
+          "slug": "delay",
+          "duration": 15,
+          "unit": "seconds"
+        },
+        "id": "79a3e0db-544b-4bc6-8a16-9418044eac80",
+        "position": {
+          "x": 4284,
+          "y": 117.5
+        }
+      },
+      {
+        "type": "code",
+        "data": {
+          "executionId": null,
+          "errorHandling": {
+            "strategy": "stop"
+          },
+          "disabled": false,
+          "name": "Code",
+          "slug": "code",
+          "language": "javascript",
+          "code": "function extractSlackListData(payload) {\n  const attachment = payload.attachments?.[0];\n  const fields = attachment?.list_record?.record?.fields || [];\n  const schema = attachment?.list_record?.schema || [];\n\n  const result = {};\n\n  fields.forEach(field => {\n    const schemaItem = schema.find(s => s.key === field.key);\n    if (!schemaItem) return;\n\n    const name = schemaItem.name.toLowerCase().replace(/\\s+/g, \"_\");\n\n    if (field.text) {\n      result[name] = field.text;\n    } else if (field.value && schemaItem.options?.choices) {\n      const choice = schemaItem.options.choices.find(c => c.value === field.value);\n      result[name] = choice ? choice.label : field.value;\n    } else if (field.user) {\n      result[name] = field.user[0];\n    } else if (field.timestamp) {\n      result[name] = new Date(field.timestamp[0] * 1000).toISOString();\n    } else if (field.checkbox !== undefined) {\n      result[name] = field.checkbox;\n    }\n  });\n\n  const text = payload.text || \"\";\n  const mentionMatch = text.match(/^@([^\\(]+)\\s*\\(/);\n  if (mentionMatch) {\n    result.submitted_by_name = mentionMatch[1].trim();\n  }\n\n  return result;\n}\n\nreturn extractSlackListData(newMessageInChannel.output);"
+        },
+        "id": "8c90ab39-1a48-4be7-b3d2-427e2e8284e6",
+        "position": {
+          "x": 1052,
+          "y": 117.5
         }
       },
       {
@@ -292,21 +178,142 @@
         },
         "id": "d496d6f0-0d5c-4e2f-a193-b1f972e560dc",
         "position": {
-          "x": 2668,
-          "y": 210
+          "x": 3756,
+          "y": 117.5
+        }
+      },
+      {
+        "type": "trigger",
+        "data": {
+          "executionId": null,
+          "errorHandling": {
+            "strategy": "stop"
+          },
+          "disabled": false,
+          "slug": "newMessageInChannel",
+          "kind": "integration",
+          "integrationId": "1f75a6d6-5719-41fb-81e2-a299f0cef537",
+          "triggerId": "5f6b7999-a677-4878-a952-d253de885876",
+          "connectionId": null,
+          "params": [
+            {
+              "key": "channelId",
+              "value": "C0AEAG522T0"
+            }
+          ]
+        },
+        "id": "a350bfcd-c560-4486-8d64-0ec02424a2e2",
+        "position": {
+          "x": 10,
+          "y": 117.5
+        }
+      },
+      {
+        "type": "action",
+        "data": {
+          "executionId": null,
+          "errorHandling": {
+            "strategy": "stop"
+          },
+          "disabled": false,
+          "slug": "replyToMessage",
+          "name": "Reply to message",
+          "actionId": "63a29b97-9b83-4182-98c7-2f6bac44e52f",
+          "config": {
+            "connectionId": null,
+            "requiresConfirmation": false,
+            "modelId": null,
+            "fields": {
+              "text": {
+                "mode": "manual",
+                "value": "<@{{code.output.submitted_by}}> ✅ Your request has been logged! You can track it here: <https://people-team.atlassian.net/servicedesk/customer/portal/18/{{createTask.output.key}}|{{createTask.output.key}}>"
+              },
+              "threadTs": {
+                "mode": "manual",
+                "value": "{{newMessageInChannel.output.ts}}"
+              },
+              "channelId": {
+                "mode": "manual",
+                "value": "C0AEAG522T0"
+              }
+            }
+          }
+        },
+        "id": "ed1e5967-c7c9-43c0-9977-555c0ab675a6",
+        "position": {
+          "x": 4812,
+          "y": 20
+        }
+      },
+      {
+        "type": "action",
+        "data": {
+          "executionId": null,
+          "errorHandling": {
+            "strategy": "stop"
+          },
+          "disabled": false,
+          "slug": "jiraFindUsers",
+          "name": "Find Jira user",
+          "actionId": "49b79a22-1428-448e-b557-47563feaf13c",
+          "config": {
+            "connectionId": null,
+            "requiresConfirmation": false,
+            "modelId": "bf3d12e6-fbf8-49d5-a8a8-a2387fc5fed4",
+            "fields": {
+              "query": {
+                "mode": "manual",
+                "value": "{{code.output.submitted_by_name}}",
+                "prompt": null
+              }
+            }
+          }
+        },
+        "id": "9c539472-1e46-45fd-b856-4cc1312f8c78",
+        "position": {
+          "x": 1580,
+          "y": 117.5
+        }
+      },
+      {
+        "type": "action",
+        "data": {
+          "executionId": null,
+          "errorHandling": {
+            "strategy": "stop"
+          },
+          "disabled": false,
+          "slug": "logToSheets",
+          "name": "Log ticket to Google Sheets",
+          "actionId": "8ce737ff-daef-4cde-b858-7540a24c7b04",
+          "config": {
+            "connectionId": null,
+            "requiresConfirmation": false,
+            "modelId": "bf3d12e6-fbf8-49d5-a8a8-a2387fc5fed4",
+            "fields": {
+              "range": {
+                "mode": "manual",
+                "value": "Sheet1"
+              },
+              "valueInput": {
+                "mode": "prompt",
+                "prompt": "Build a 2D array (array of arrays) with exactly one inner array containing these 5 values in order:\n1. The Jira ticket key from createTask (e.g. WOR-123)\n2. The Slack message timestamp (ts) from newMessageInChannel\n3. The string literal 'C0AEAG522T0'\n4. The string literal 'Open'\n5. The submitted_by field from code (the Slack user ID of the requester, e.g. U07171QC9U4)\n\nReturn only the 2D array, e.g. [[\"WOR-123\", \"1776761636.392269\", \"C0AEAG522T0\", \"Open\", \"U07171QC9U4\"]]"
+              },
+              "spreadsheetId": {
+                "mode": "manual",
+                "value": "1jnhL-Ck1jgSaBKn13k7D_dw2yDnfIvBZBnmLb2Uz9xA"
+              }
+            }
+          }
+        },
+        "id": "93a3161f-c718-4db0-a86c-3eda45c3d141",
+        "position": {
+          "x": 4812,
+          "y": 405
         }
       }
     ],
     "edges": [
-      {
-        "id": "a6134bf7-554e-44cb-b1bf-179352bf30c3",
-        "source": "d496d6f0-0d5c-4e2f-a193-b1f972e560dc",
-        "target": "ed1e5967-c7c9-43c0-9977-555c0ab675a6",
-        "animated": false,
-        "sourceHandle": "output-success",
-        "targetHandle": "input-default",
-        "conditionId": null
-      },
       {
         "id": "45a02f22-6b61-413c-bd5d-b0ed20cea88a",
         "source": "8c90ab39-1a48-4be7-b3d2-427e2e8284e6",
@@ -317,18 +324,18 @@
         "conditionId": null
       },
       {
-        "id": "4d71a34a-6664-423c-9fe9-2741e7a541f7",
-        "source": "d496d6f0-0d5c-4e2f-a193-b1f972e560dc",
-        "target": "93a3161f-c718-4db0-a86c-3eda45c3d141",
+        "id": "63f908f4-160d-43c1-b96e-e43d66970322",
+        "source": "f96b08c1-89c4-4ce4-8ec1-cbaae8c42d82",
+        "target": "d496d6f0-0d5c-4e2f-a193-b1f972e560dc",
         "animated": false,
         "sourceHandle": "output-success",
         "targetHandle": "input-default",
         "conditionId": null
       },
       {
-        "id": "79edfe12-3413-44bb-8792-e89bef7dece7",
-        "source": "f96b08c1-89c4-4ce4-8ec1-cbaae8c42d82",
-        "target": "d496d6f0-0d5c-4e2f-a193-b1f972e560dc",
+        "id": "4f1ca140-5cb3-4959-a092-13160d5d9f56",
+        "source": "d496d6f0-0d5c-4e2f-a193-b1f972e560dc",
+        "target": "79a3e0db-544b-4bc6-8a16-9418044eac80",
         "animated": false,
         "sourceHandle": "output-success",
         "targetHandle": "input-default",
@@ -356,6 +363,24 @@
         "id": "f59095c0-0e04-49fc-9fd7-d9da7fc3efab",
         "source": "9c539472-1e46-45fd-b856-4cc1312f8c78",
         "target": "f96b08c1-89c4-4ce4-8ec1-cbaae8c42d82",
+        "animated": false,
+        "sourceHandle": "output-success",
+        "targetHandle": "input-default",
+        "conditionId": null
+      },
+      {
+        "id": "706c8ca3-555e-4507-a174-faa7050eef6b",
+        "source": "79a3e0db-544b-4bc6-8a16-9418044eac80",
+        "target": "93a3161f-c718-4db0-a86c-3eda45c3d141",
+        "animated": false,
+        "sourceHandle": "output-success",
+        "targetHandle": "input-default",
+        "conditionId": null
+      },
+      {
+        "id": "1bccba47-da52-40da-85ab-1796e7989a77",
+        "source": "79a3e0db-544b-4bc6-8a16-9418044eac80",
+        "target": "ed1e5967-c7c9-43c0-9977-555c0ab675a6",
         "animated": false,
         "sourceHandle": "output-success",
         "targetHandle": "input-default",
