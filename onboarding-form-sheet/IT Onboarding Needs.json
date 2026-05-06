@@ -1,0 +1,112 @@
+{
+  "schema": "ldwf",
+  "version": 1,
+  "name": "IT Onboarding Needs",
+  "meta": {
+    "exportedAt": "2026-05-06T06:58:32.593Z",
+    "exporter": "client"
+  },
+  "graph": {
+    "nodes": [
+      {
+        "type": "trigger",
+        "data": {
+          "executionId": null,
+          "errorHandling": {
+            "strategy": "stop"
+          },
+          "disabled": false,
+          "slug": "webhook1",
+          "name": "Webhook",
+          "kind": "webhook",
+          "authMethod": "header",
+          "waitForResponse": false
+        },
+        "id": "67c86d64-3528-495b-a605-e885ca885298",
+        "position": {
+          "x": 10,
+          "y": 20
+        }
+      },
+      {
+        "type": "action",
+        "data": {
+          "executionId": null,
+          "errorHandling": {
+            "strategy": "stop"
+          },
+          "disabled": false,
+          "slug": "appendRows",
+          "name": "Append row to spreadsheet",
+          "actionId": "8ce737ff-daef-4cde-b858-7540a24c7b04",
+          "config": {
+            "connectionId": null,
+            "requiresConfirmation": false,
+            "modelId": "bf3d12e6-fbf8-49d5-a8a8-a2387fc5fed4",
+            "fields": {
+              "range": {
+                "mode": "manual",
+                "value": "onboarding-automated",
+                "prompt": null
+              },
+              "valueInput": {
+                "mode": "manual",
+                "value": "{{buildRow.output}}",
+                "prompt": null
+              },
+              "spreadsheetId": {
+                "mode": "manual",
+                "value": "1RVc9ScyMliPBeljmssA7fFTDYC3Qk9y7X72G6xRgVRQ",
+                "prompt": null
+              }
+            }
+          }
+        },
+        "id": "80038218-667d-4fa6-8897-2d56fb8220a4",
+        "position": {
+          "x": 1044,
+          "y": 20
+        }
+      },
+      {
+        "type": "code",
+        "data": {
+          "executionId": null,
+          "errorHandling": {
+            "strategy": "stop"
+          },
+          "disabled": false,
+          "name": "Build row",
+          "slug": "buildRow",
+          "language": "javascript",
+          "code": "const b = webhook1.output.body;\n\nreturn [\n  [\n    b.submittedAt ?? null,\n    b.requestedAt ?? null,\n    b.requestRef ?? null,\n    b.department ?? null,\n    b.market ?? null,\n    b.contractType ?? null,\n    b.employeeName ?? null,\n    b.privateEmail ?? null,\n    b.shippingAddress ?? null,\n    b.shippingAddressLine1 ?? null,\n    b.shippingAddressLine2 ?? null,\n    b.shippingCity ?? null,\n    b.shippingState ?? null,\n    b.shippingPostcode ?? null,\n    b.shippingCountry ?? null,\n    b.officeLocation ?? null,\n    b.needsMonitor ?? null,\n    b.operatingSystem ?? null,\n    b.keyboardLayout ?? null,\n    b.osLanguage ?? null,\n    b.ipadKeyboard ?? null\n  ]\n];"
+        },
+        "id": "a6364778-6121-4731-a6b2-08d287d9f624",
+        "position": {
+          "x": 520,
+          "y": 117.5
+        }
+      }
+    ],
+    "edges": [
+      {
+        "id": "47d66ef7-03a2-404e-92ac-91974acaf50c",
+        "source": "67c86d64-3528-495b-a605-e885ca885298",
+        "target": "a6364778-6121-4731-a6b2-08d287d9f624",
+        "animated": false,
+        "sourceHandle": "output-success",
+        "targetHandle": "input-default",
+        "conditionId": null
+      },
+      {
+        "id": "234fabfc-e2bb-4d98-8860-3a16c3a6f751",
+        "source": "a6364778-6121-4731-a6b2-08d287d9f624",
+        "target": "80038218-667d-4fa6-8897-2d56fb8220a4",
+        "animated": false,
+        "sourceHandle": "output-success",
+        "targetHandle": "input-default",
+        "conditionId": null
+      }
+    ]
+  }
+}
