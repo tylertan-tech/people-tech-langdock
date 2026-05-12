@@ -3,29 +3,84 @@
   "version": 1,
   "name": "Field Sales Queries 2",
   "meta": {
-    "exportedAt": "2026-04-29T13:03:28.850Z",
+    "exportedAt": "2026-05-12T08:01:32.634Z",
     "exporter": "client"
   },
   "graph": {
     "nodes": [
       {
-        "type": "loop",
+        "type": "code",
         "data": {
           "executionId": null,
           "errorHandling": {
             "strategy": "stop"
           },
           "disabled": false,
-          "name": "Loop over tickets",
-          "slug": "ticketLoop",
-          "loopArrayValue": "{{getSheetRows.output.values.slice(1).map((row, i) => [...row, i + 2]).filter(row => row[3] === 'Open')}}",
-          "maxIterations": 200,
-          "concurrency": false,
-          "collectOutputs": false
+          "name": "Find matching row for Jira ticket",
+          "slug": "findMatchingRow",
+          "language": "javascript",
+          "code": "const issueKey = (jiraUpdatedIssue.output.key || '').toString().trim();\nconst issueSummary = (jiraUpdatedIssue.output.summary || '').toString().trim();\n\n// The Google Sheets action returns data under output.values as a 2D array\nconst rows = getSheetRows.output.values || getSheetRows.output.rows || [];\n\nlet matchedRow = null;\nlet rowIndex = -1;\n\nfor (let i = 0; i < rows.length; i++) {\n  const cells = rows[i];\n\n  if (!Array.isArray(cells)) continue;\n\n  // Match if any cell equals the Jira issue key (e.g. WOR-15608)\n  const match = cells.some(v => {\n    const cell = (v ?? '').toString().trim();\n    return cell === issueKey || cell === issueSummary;\n  });\n\n  if (match) {\n    matchedRow = cells;\n    rowIndex = i;\n    break;\n  }\n}\n\nreturn {\n  found: matchedRow !== null,\n  rowIndex,\n  // +2 because sheets are 1-indexed and we need to account for a potential header row offset\n  sheetRowIndex: rowIndex + 1,\n  row: matchedRow,\n  issueKey,\n  issueSummary,\n  channelId: matchedRow ? (matchedRow[2] || null) : null,\n  threadTs: matchedRow ? (matchedRow[1] || null) : null\n};"
         },
-        "id": "0a828eab-6d9a-4dea-b171-3fb84ea446ac",
+        "id": "1160f16d-e1c2-4822-a686-ad049a2601ca",
         "position": {
-          "x": 1052,
+          "x": 2108,
+          "y": 117.5
+        }
+      },
+      {
+        "type": "action",
+        "data": {
+          "executionId": null,
+          "errorHandling": {
+            "strategy": "stop"
+          },
+          "disabled": false,
+          "slug": "replyToSlack",
+          "name": "Reply to Slack thread",
+          "actionId": "63a29b97-9b83-4182-98c7-2f6bac44e52f",
+          "config": {
+            "connectionId": null,
+            "requiresConfirmation": false,
+            "modelId": "bf3d12e6-fbf8-49d5-a8a8-a2387fc5fed4",
+            "fields": {
+              "text": {
+                "mode": "prompt",
+                "value": null,
+                "prompt": "Reply to the Slack thread saying the Jira ticket {{findMatchingRow.output.issueKey}} has been marked as Done. Keep it brief and professional."
+              },
+              "threadTs": {
+                "mode": "manual",
+                "value": "{{findMatchingRow.output.threadTs}}"
+              },
+              "channelId": {
+                "mode": "manual",
+                "value": "{{findMatchingRow.output.channelId}}"
+              }
+            }
+          }
+        },
+        "id": "7c535bfe-1803-4f64-ac81-2b3e7f51478a",
+        "position": {
+          "x": 3164,
+          "y": 20
+        }
+      },
+      {
+        "type": "code",
+        "data": {
+          "executionId": null,
+          "errorHandling": {
+            "strategy": "stop"
+          },
+          "disabled": false,
+          "name": "Check filter criteria",
+          "slug": "checkFilter",
+          "language": "javascript",
+          "code": "const status = jiraUpdatedIssue.output.status || '';\nconst summary = (jiraUpdatedIssue.output.summary || '').toLowerCase();\n\nreturn {\n  isDone: status === 'Done' || status === 'Closed',\n  hasSalesQuery: summary.includes('field-sales-queries'),\n  matches: (status === 'Done' || status === 'Closed') && summary.includes('field-sales-queries')\n};"
+        },
+        "id": "c4ae955c-4b8a-4551-b77a-6559b8135b50",
+        "position": {
+          "x": 524,
           "y": 117.5
         }
       },
@@ -37,48 +92,30 @@
             "strategy": "stop"
           },
           "disabled": false,
-          "name": "Is ticket Done?",
-          "slug": "isTicketDone",
-          "mode": "prompt",
+          "name": "Check ticket matches filter",
+          "slug": "checkTicketFilter",
+          "mode": "manual",
           "outputMode": "single",
-          "modelId": "bf3d12e6-fbf8-49d5-a8a8-a2387fc5fed4",
+          "modelId": null,
           "forceSelectBranch": false,
           "conditions": [
             {
-              "id": "f64a2137-78b9-4eab-8cd2-b45f6092bd9e",
-              "name": "Ticket is Done",
-              "value": null,
-              "prompt": "The Jira issue status is 'Done' or 'Closed'. Check {{getJiraIssue.output}} for the status field."
+              "id": "56162d61-4a79-401e-97f4-3162ae0be6b4",
+              "name": "Status is Done and summary contains fields-sales-queries",
+              "value": "{{checkFilter.output.matches === true}}",
+              "prompt": null
             },
             {
-              "id": "b4352abb-f869-468f-a785-f96892fd12a8",
-              "name": "Ticket is not Done",
-              "value": null,
-              "prompt": "The Jira issue status is NOT 'Done' or 'Closed'. The ticket is still in progress."
+              "id": "380c2b66-e36f-4369-b1df-c5a70114d9cb",
+              "name": "Does not match",
+              "value": "{{checkFilter.output.matches !== true}}",
+              "prompt": null
             }
           ]
         },
-        "id": "d53567af-71ce-4c81-b5bf-b061b3e9ffca",
+        "id": "54d26341-c5e8-424f-a37b-c2ae4f334d43",
         "position": {
-          "x": 2108,
-          "y": 117.5
-        }
-      },
-      {
-        "type": "loop_end",
-        "data": {
-          "executionId": null,
-          "errorHandling": {
-            "strategy": "continue"
-          },
-          "disabled": false,
-          "name": "Loop end",
-          "slug": "ticketLoopEnd",
-          "loopEndSlug": "ticketLoop"
-        },
-        "id": "d4e86f6b-3599-41d6-8935-e51eac670270",
-        "position": {
-          "x": 4212,
+          "x": 1052,
           "y": 117.5
         }
       },
@@ -90,12 +127,25 @@
             "strategy": "stop"
           },
           "disabled": false,
-          "slug": "everyFiveMinutes",
-          "name": "Every Five Minutes",
-          "kind": "scheduled",
-          "cron": "* * * * *"
+          "slug": "jiraUpdatedIssue",
+          "name": "Jira ticket marked as Done",
+          "kind": "integration",
+          "integrationId": "561904a4-48ee-4081-85c7-c152093b77dd",
+          "triggerId": "3e7309c6-0701-40b2-a824-0a7c8ab53350",
+          "requiresConnection": true,
+          "connectionId": null,
+          "params": [
+            {
+              "key": "issueType",
+              "value": ""
+            },
+            {
+              "key": "projectKey",
+              "value": "WOR"
+            }
+          ]
         },
-        "id": "c3514438-2b17-41e6-8d8c-a6744416619a",
+        "id": "bb24f971-4646-4d04-be9d-3d2af606c250",
         "position": {
           "x": 10,
           "y": 117.5
@@ -109,79 +159,13 @@
             "strategy": "stop"
           },
           "disabled": false,
-          "slug": "getJiraIssue",
-          "name": "Get Jira issue status",
-          "actionId": "a6d0cba1-4767-4c01-81e6-a5a06976addf",
-          "config": {
-            "connectionId": null,
-            "requiresConfirmation": false,
-            "modelId": "bf3d12e6-fbf8-49d5-a8a8-a2387fc5fed4",
-            "fields": {
-              "issueId": {
-                "mode": "manual",
-                "value": "{{ticketLoop.output.currentItem[0]}}"
-              }
-            }
-          }
-        },
-        "id": "171c78f9-5a57-4043-97eb-fd75e5b4263c",
-        "position": {
-          "x": 1580,
-          "y": 117.5
-        }
-      },
-      {
-        "type": "action",
-        "data": {
-          "executionId": null,
-          "errorHandling": {
-            "strategy": "stop"
-          },
-          "disabled": false,
-          "slug": "appendToSheet2",
-          "name": "Append ticket to Sheet2",
-          "actionId": "8ce737ff-daef-4cde-b858-7540a24c7b04",
-          "config": {
-            "connectionId": null,
-            "requiresConfirmation": false,
-            "modelId": "bf3d12e6-fbf8-49d5-a8a8-a2387fc5fed4",
-            "fields": {
-              "range": {
-                "mode": "manual",
-                "value": "Sheet2"
-              },
-              "valueInput": {
-                "mode": "prompt",
-                "prompt": "Build a 2D array (array of arrays) with exactly one row, containing these 5 values in order: index 0 (ticket key) from ticketLoop.output.currentItem[0], index 1 (Slack thread TS) from ticketLoop.output.currentItem[1], index 2 (Slack channel) from ticketLoop.output.currentItem[2], the hardcoded string \"Closed\" as the status, and index 4 (summary) from ticketLoop.output.currentItem[4]. Example format: [[\"PROJ-1\", \"12345.678\", \"C123\", \"Closed\", \"Fix bug\"]]"
-              },
-              "spreadsheetId": {
-                "mode": "manual",
-                "value": "1jnhL-Ck1jgSaBKn13k7D_dw2yDnfIvBZBnmLb2Uz9xA"
-              }
-            }
-          }
-        },
-        "id": "b98a0020-e92c-463d-9810-cc90413e45fc",
-        "position": {
-          "x": 3160,
-          "y": 117.5
-        }
-      },
-      {
-        "type": "action",
-        "data": {
-          "executionId": null,
-          "errorHandling": {
-            "strategy": "stop"
-          },
-          "disabled": false,
-          "slug": "updateSheetRow",
-          "name": "Delete row from sheet",
+          "slug": "deleteFromSheet1",
+          "name": "Delete row from Sheet1",
           "actionId": "a883ea4c-6cf5-4ca6-8670-30bc5ea2f1cd",
           "config": {
             "connectionId": null,
             "requiresConfirmation": false,
-            "modelId": null,
+            "modelId": "bf3d12e6-fbf8-49d5-a8a8-a2387fc5fed4",
             "fields": {
               "sheetId": {
                 "mode": "manual",
@@ -193,56 +177,19 @@
               },
               "rowRangeEndIndex": {
                 "mode": "manual",
-                "value": "{{ticketLoop.output.currentItem[5]}}"
+                "value": "{{findMatchingRow.output.sheetRowIndex + 1}}"
               },
               "rowRangeStartIndex": {
                 "mode": "manual",
-                "value": "{{ticketLoop.output.currentItem[5] - 1}}"
+                "value": "{{findMatchingRow.output.sheetRowIndex}}"
               }
             }
           }
         },
-        "id": "763d75b2-ddb2-4475-b181-a03863463ced",
+        "id": "913e5392-19e7-4c3c-aa57-0813708648a5",
         "position": {
-          "x": 3684,
-          "y": 20
-        }
-      },
-      {
-        "type": "action",
-        "data": {
-          "executionId": null,
-          "errorHandling": {
-            "strategy": "stop"
-          },
-          "disabled": false,
-          "slug": "replyToSlackThread",
-          "name": "Reply in Slack thread",
-          "actionId": "63a29b97-9b83-4182-98c7-2f6bac44e52f",
-          "config": {
-            "connectionId": null,
-            "requiresConfirmation": false,
-            "modelId": null,
-            "fields": {
-              "text": {
-                "mode": "manual",
-                "value": "✅ Your Jira ticket ({{ticketLoop.output.currentItem[0]}}) has been completed! Let us know if you have any questions."
-              },
-              "threadTs": {
-                "mode": "manual",
-                "value": "{{ticketLoop.output.currentItem[1]}}"
-              },
-              "channelId": {
-                "mode": "manual",
-                "value": "{{ticketLoop.output.currentItem[2]}}"
-              }
-            }
-          }
-        },
-        "id": "777ee5fb-a235-4a79-a008-67e2f7f6a7ec",
-        "position": {
-          "x": 2636,
-          "y": 20
+          "x": 3692,
+          "y": 405
         }
       },
       {
@@ -272,90 +219,154 @@
             }
           }
         },
-        "id": "cebae2c6-ba34-45ff-b14f-2f57e3689092",
+        "id": "469ffd69-f464-498f-aced-3c42ba2aff4b",
         "position": {
-          "x": 524,
+          "x": 1580,
           "y": 117.5
+        }
+      },
+      {
+        "type": "condition",
+        "data": {
+          "executionId": null,
+          "errorHandling": {
+            "strategy": "stop"
+          },
+          "disabled": false,
+          "name": "Row found?",
+          "slug": "rowFound",
+          "mode": "manual",
+          "outputMode": "multiple",
+          "modelId": null,
+          "forceSelectBranch": false,
+          "conditions": [
+            {
+              "id": "501b2d13-e4f5-49ce-a7fa-66b0e6eec202",
+              "name": "Row found in sheet",
+              "value": "{{findMatchingRow.output.found === true}}",
+              "prompt": null
+            },
+            {
+              "id": "b32b2a4d-0721-474e-a9db-2896830ddf24",
+              "name": "No matching row",
+              "value": "{{findMatchingRow.output.found !== true}}",
+              "prompt": null
+            }
+          ]
+        },
+        "id": "c75820dd-0678-44e5-bf5c-afd9f8899ed3",
+        "position": {
+          "x": 2636,
+          "y": 117.5
+        }
+      },
+      {
+        "type": "action",
+        "data": {
+          "executionId": null,
+          "errorHandling": {
+            "strategy": "stop"
+          },
+          "disabled": false,
+          "slug": "appendToSheet2",
+          "name": "Append to Sheet2",
+          "actionId": "8ce737ff-daef-4cde-b858-7540a24c7b04",
+          "config": {
+            "connectionId": null,
+            "requiresConfirmation": false,
+            "modelId": "bf3d12e6-fbf8-49d5-a8a8-a2387fc5fed4",
+            "fields": {
+              "range": {
+                "mode": "manual",
+                "value": "Sheet2"
+              },
+              "valueInput": {
+                "mode": "prompt",
+                "value": null,
+                "prompt": "Use the row data from findMatchingRow.output.row and wrap it as a 2D array like [[col1, col2, ...]] to append to the sheet."
+              },
+              "spreadsheetId": {
+                "mode": "manual",
+                "value": "1jnhL-Ck1jgSaBKn13k7D_dw2yDnfIvBZBnmLb2Uz9xA"
+              }
+            }
+          }
+        },
+        "id": "6b473260-9575-48a9-bd76-8aa89b17a932",
+        "position": {
+          "x": 3164,
+          "y": 405
         }
       }
     ],
     "edges": [
       {
-        "id": "f321902e-b368-408c-bb22-144b748b6e8c",
-        "source": "c3514438-2b17-41e6-8d8c-a6744416619a",
-        "target": "cebae2c6-ba34-45ff-b14f-2f57e3689092",
-        "animated": false,
-        "sourceHandle": "output-success",
-        "targetHandle": "input-default",
-        "conditionId": null
-      },
-      {
-        "id": "c9d22b1a-eb4a-4d31-a8c0-ee0c9b09a6c4",
-        "source": "d53567af-71ce-4c81-b5bf-b061b3e9ffca",
-        "target": "d4e86f6b-3599-41d6-8935-e51eac670270",
+        "id": "a3f38d5f-ab5a-464c-994d-79356867feb1",
+        "source": "c75820dd-0678-44e5-bf5c-afd9f8899ed3",
+        "target": "7c535bfe-1803-4f64-ac81-2b3e7f51478a",
         "animated": false,
         "sourceHandle": "output-condition",
         "targetHandle": "input-default",
-        "conditionId": "b4352abb-f869-468f-a785-f96892fd12a8"
+        "conditionId": "501b2d13-e4f5-49ce-a7fa-66b0e6eec202"
       },
       {
-        "id": "0c9683ad-1ee2-44c8-95e9-a3c1a75b629d",
-        "source": "b98a0020-e92c-463d-9810-cc90413e45fc",
-        "target": "763d75b2-ddb2-4475-b181-a03863463ced",
+        "id": "743a79a8-2a21-4ee3-a7a6-11a6a37ced43",
+        "source": "469ffd69-f464-498f-aced-3c42ba2aff4b",
+        "target": "1160f16d-e1c2-4822-a686-ad049a2601ca",
         "animated": false,
         "sourceHandle": "output-success",
         "targetHandle": "input-default",
         "conditionId": null
       },
       {
-        "id": "2292a311-ecf6-4a3f-82c4-4a6ef2961823",
-        "source": "0a828eab-6d9a-4dea-b171-3fb84ea446ac",
-        "target": "171c78f9-5a57-4043-97eb-fd75e5b4263c",
+        "id": "05b87014-1561-4b08-a5df-b65d3ce2e2b0",
+        "source": "c4ae955c-4b8a-4551-b77a-6559b8135b50",
+        "target": "54d26341-c5e8-424f-a37b-c2ae4f334d43",
         "animated": false,
         "sourceHandle": "output-success",
         "targetHandle": "input-default",
         "conditionId": null
       },
       {
-        "id": "4f9a1c0e-9f03-40eb-8a68-96110dbdacbc",
-        "source": "171c78f9-5a57-4043-97eb-fd75e5b4263c",
-        "target": "d53567af-71ce-4c81-b5bf-b061b3e9ffca",
-        "animated": false,
-        "sourceHandle": "output-success",
-        "targetHandle": "input-default",
-        "conditionId": null
-      },
-      {
-        "id": "84c8ef11-eb9b-4022-bdc0-92e87954e04b",
-        "source": "cebae2c6-ba34-45ff-b14f-2f57e3689092",
-        "target": "0a828eab-6d9a-4dea-b171-3fb84ea446ac",
-        "animated": false,
-        "sourceHandle": "output-success",
-        "targetHandle": "input-default",
-        "conditionId": null
-      },
-      {
-        "id": "fb7a322d-a044-450e-b842-b5eb6c810dac",
-        "source": "d53567af-71ce-4c81-b5bf-b061b3e9ffca",
-        "target": "777ee5fb-a235-4a79-a008-67e2f7f6a7ec",
+        "id": "6ea7e0bc-2aa4-4d10-9cd9-5c06a2caab61",
+        "source": "c75820dd-0678-44e5-bf5c-afd9f8899ed3",
+        "target": "6b473260-9575-48a9-bd76-8aa89b17a932",
         "animated": false,
         "sourceHandle": "output-condition",
         "targetHandle": "input-default",
-        "conditionId": "f64a2137-78b9-4eab-8cd2-b45f6092bd9e"
+        "conditionId": "501b2d13-e4f5-49ce-a7fa-66b0e6eec202"
       },
       {
-        "id": "a47e01bb-0372-4a69-b0ba-4878a7d74e35",
-        "source": "777ee5fb-a235-4a79-a008-67e2f7f6a7ec",
-        "target": "b98a0020-e92c-463d-9810-cc90413e45fc",
+        "id": "5f2de83b-671e-4110-95a3-7d964797a2ee",
+        "source": "6b473260-9575-48a9-bd76-8aa89b17a932",
+        "target": "913e5392-19e7-4c3c-aa57-0813708648a5",
         "animated": false,
         "sourceHandle": "output-success",
         "targetHandle": "input-default",
         "conditionId": null
       },
       {
-        "id": "be3158a1-22c4-465a-b5a7-05c45ce3c71e",
-        "source": "763d75b2-ddb2-4475-b181-a03863463ced",
-        "target": "d4e86f6b-3599-41d6-8935-e51eac670270",
+        "id": "ef75aa3d-5222-47f9-8272-beb826bdf5aa",
+        "source": "bb24f971-4646-4d04-be9d-3d2af606c250",
+        "target": "c4ae955c-4b8a-4551-b77a-6559b8135b50",
+        "animated": false,
+        "sourceHandle": "output-success",
+        "targetHandle": "input-default",
+        "conditionId": null
+      },
+      {
+        "id": "eaf6b463-dd07-4d6b-8e4f-b1080adc29cc",
+        "source": "54d26341-c5e8-424f-a37b-c2ae4f334d43",
+        "target": "469ffd69-f464-498f-aced-3c42ba2aff4b",
+        "animated": false,
+        "sourceHandle": "output-condition",
+        "targetHandle": "input-default",
+        "conditionId": "56162d61-4a79-401e-97f4-3162ae0be6b4"
+      },
+      {
+        "id": "7b5bb9ec-252f-4d4a-968d-c4d2c93d40eb",
+        "source": "1160f16d-e1c2-4822-a686-ad049a2601ca",
+        "target": "c75820dd-0678-44e5-bf5c-afd9f8899ed3",
         "animated": false,
         "sourceHandle": "output-success",
         "targetHandle": "input-default",

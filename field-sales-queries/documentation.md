@@ -6,11 +6,11 @@ Langdock workflow exports (`schema: ldwf`) for turning Slack field-sales list su
 
 - **Google Sheet** (shared tracker): https://docs.google.com/spreadsheets/d/1jnhL-Ck1jgSaBKn13k7D_dw2yDnfIvBZBnmLb2Uz9xA/edit?usp=sharing  
 - Workflow 1 (Langdock editor): https://app.langdock.com/workflows/aab23b86-4776-48b4-80fd-83a487baf3f5  
-- Workflow 2 (Langdock editor): https://app.langdock.com/workflows/5d189d89-f130-46e5-8cf9-c7563e21086a  
+- Workflow 2 (Langdock editor): https://app.langdock.com/workflows/f35115f6-a577-420a-8b8d-37e7e3e658ad  
 - Jira Automation (WOR project): https://people-team.atlassian.net/jira/servicedesk/projects/WOR/settings/automate#/rule/019dd89a-e393-7de4-9c24-2cf9c7780548  
 - Jira board / sample issue (PSE): https://people-team.atlassian.net/jira/software/projects/PSE/boards/73?selectedIssue=PSE-1  
 
-Exports in this folder were last saved on **2026-04-29** (see `meta.exportedAt` in each JSON file).
+Exports in this folder were last saved on **2026-04-29** for Workflow 1 and **2026-05-12** for Workflow 2 (see `meta.exportedAt` in each JSON file).
 
 ---
 
@@ -19,9 +19,9 @@ Exports in this folder were last saved on **2026-04-29** (see `meta.exportedAt` 
 | File | Role |
 |------|------|
 | `Field Sales Queries 1.json` | **Ingestion** — Slack list submission → Jira ticket + **Sheet1** row (`Open`) + confirmation reply. |
-| `Field Sales Queries 2.json` | **Reconciliation** — On a schedule, reads **Sheet1**, checks Jira for each **Open** row; when status is **Done** or **Closed**, notifies the Slack thread, archives a row on **Sheet2**, and removes the row from **Sheet1**. |
+| `Field Sales Queries 2.json` | **Reconciliation** — On a Jira update event, filters for completed field-sales tickets, finds the matching **Sheet1** row, notifies the Slack thread, archives the row on **Sheet2**, and removes it from **Sheet1**. |
 
-The workflows do not invoke each other in Langdock. They share the same **spreadsheet** (ID `1jnhL-Ck1jgSaBKn13k7D_dw2yDnfIvBZBnmLb2Uz9xA`; open in browser via the link above) and the same **Sheet1** column layout so Workflow 2 can consume what Workflow 1 writes.
+The workflows do not invoke each other in Langdock. Workflow 1 writes the Jira key, Slack thread metadata, and tracking status to the shared **spreadsheet** (ID `1jnhL-Ck1jgSaBKn13k7D_dw2yDnfIvBZBnmLb2Uz9xA`; open in browser via the link above). Workflow 2 is triggered by Jira, then uses that shared **Sheet1** row layout to find the Slack thread to close out.
 
 ```mermaid
 flowchart TB
@@ -31,16 +31,18 @@ flowchart TB
     D1 --> SH1[Append Sheet1 row: Open]
     D1 --> R1[Slack reply with ticket link]
   end
-  subgraph WF2["Workflow 2 — scheduled"]
-    CRON[Every minute] --> RD[Read Sheet1]
-    RD --> LOOP[For each Open row]
-    LOOP --> J2[Jira get issue]
-    J2 --> Q{Done / Closed?}
-    Q -->|No| NEXT[Next row]
+  subgraph WF2["Workflow 2 — Jira-triggered"]
+    JU[Jira issue updated] --> F{Done / Closed and field-sales?}
+    F -->|No| STOP[Stop]
+    F -->|Yes| RD[Read Sheet1]
+    RD --> M[Find matching row by issue key or summary]
+    M --> Q{Row found?}
+    Q -->|No| STOP2[Stop]
     Q -->|Yes| R2[Slack thread: completed]
-    R2 --> SH2[Append Sheet2: Closed]
-    SH2 --> RM[Delete Sheet1 row]
+    Q -->|Yes| SH2[Append matched row to Sheet2]
+    SH2 --> RM[Delete matched row from Sheet1]
   end
+  J1 -.->|later Jira update| JU
   SH1 -.->|same Sheet1| RD
 ```
 
@@ -80,28 +82,28 @@ flowchart LR
 
 ```mermaid
 flowchart LR
-  T["Trigger: scheduled cron"] --> G["Get Sheet1 values"]
-  G --> L["Loop: Open rows only + sheet row #"]
-  L --> J["Get Jira issue by key"]
-  J --> D{"AI: Done or Closed?"}
-  D -->|"Not done"| E["Loop end — next item"]
-  D -->|"Done"| SL["Reply in Slack thread"]
-  SL --> A["Append row to Sheet2"]
-  A --> RM["Delete row from Sheet1"]
-  RM --> E
+  T["Trigger: Jira ticket updated in WOR"] --> F["Code: check status + summary filter"]
+  F --> C{"Done/Closed and summary contains field-sales-queries?"}
+  C -->|"No"| STOP["Stop — no downstream"]
+  C -->|"Yes"| G["Get Sheet1 values"]
+  G --> M["Code: find matching Sheet1 row"]
+  M --> R{"Row found?"}
+  R -->|"No"| STOP2["Stop — no downstream"]
+  R -->|"Yes"| SL["Reply in Slack thread"]
+  R -->|"Yes"| A["Append matched row to Sheet2"]
+  A --> RM["Delete matched row from Sheet1"]
 ```
 
 **Order of execution**
 
-1. **Schedule** — Trigger name in the export is **Every Five Minutes**, but the configured cron expression is **`* * * * *`**, which runs **every minute**. If you intended a slower cadence, adjust the cron in Langdock to match (for example `*/5 * * * *` for every five minutes).
-2. **Get open Jira tickets from sheet** — Reads **Sheet1** of the shared spreadsheet.
-3. **Loop over tickets** — Builds items from all data rows after the header: keeps rows where status column (index `3`) is **`Open`**, and appends the **Google Sheet row number** as the last element (`i + 2`) for delete-range operations (`currentItem[5]`).
-4. **Get Jira issue status** — Uses the ticket key from `currentItem[0]`.
-5. **Is ticket Done?** — Prompt-based branch on `getJiraIssue` output: **Done** or **Closed** vs still in progress.
-6. **If not done** — Goes to **Loop end** (next iteration).
-7. **If done** — **Reply in Slack thread** (`threadTs` and `channelId` from the row) → **Append to Sheet2** (archived “Closed” row) → **Delete** that row from **Sheet1** using the stored row index → **Loop end**.
+1. **Trigger** — Runs when a Jira issue in project **WOR** is updated.
+2. **Check filter criteria** — Continues only when the Jira status is **Done** or **Closed** and the lowercased summary contains `field-sales-queries`.
+3. **Get open Jira tickets from sheet** — Reads **Sheet1** of the shared spreadsheet.
+4. **Find matching row for Jira ticket** — Looks through the returned sheet rows and matches when any cell exactly equals the Jira issue key (for example `WOR-15608`) or the Jira issue summary. It returns the matched row, row index, issue key/summary, Slack channel id (`row[2]`), and Slack thread timestamp (`row[1]`).
+5. **Row found?** — If no row matches, the workflow stops with no Slack or Sheets writes.
+6. **If row found** — The workflow replies in the original Slack thread and appends the matched row to **Sheet2**. After the Sheet2 append succeeds, it deletes the matched row from **Sheet1** using the stored row index.
 
-**Error handling** — Loop end uses `continue` on errors so one bad row may not stop the whole loop; other nodes use `stop` where configured.
+**Error handling** — Nodes use `strategy: stop`; a failed filter, lookup, Slack reply, append, or delete stops that run.
 
 ---
 
@@ -121,18 +123,18 @@ If the bot/`filed` condition fails, nothing is written to Jira, Sheet1, or Slack
 
 | Destination | Expected result |
 |-------------|-----------------|
-| **Jira** | Read-only: status check only; no issue updates from this workflow. |
-| **Slack** | For each row that was **Open** in Sheet1 and is now **Done/Closed** in Jira: a **thread reply** on the original channel/thread with the ticket key and a short completion message. |
-| **Google Sheets — Sheet2** | One appended row per closed ticket: **key**, **thread `ts`**, **channel id**, status **`Closed`**, fifth column from `currentItem[4]` (same Sheet1 column as Workflow 1’s fifth field — the append prompt labels it “summary”; the sheet column is whatever Workflow 1 wrote in position 5, typically submitter id). |
-| **Google Sheets — Sheet1** | The corresponding **Open** row is **removed** after a successful close path (reply → append Sheet2 → delete). |
+| **Jira** | Read-only trigger source: the workflow reacts to updates but does not modify Jira issues. |
+| **Slack** | If the updated Jira issue is **Done/Closed**, has `field-sales-queries` in the summary, and a matching Sheet1 row is found: a **thread reply** on the original channel/thread with a brief completion message. |
+| **Google Sheets — Sheet2** | One appended row per matched completed ticket, using the matched Sheet1 row wrapped as a 2D array (`[[col1, col2, ...]]`). |
+| **Google Sheets — Sheet1** | The matched row is **removed** after the Sheet2 append succeeds. |
 
-Rows that are still not **Done**/**Closed** in Jira stay on Sheet1 and are re-checked on the next run.
+Rows for tickets that are not yet **Done**/**Closed**, do not include `field-sales-queries` in the summary, or do not match the updated Jira issue stay on Sheet1.
 
 ---
 
 ## Sheet1 row shape (shared contract)
 
-For Workflow 2’s loop and delete logic to work, Sheet1 rows written by Workflow 1 should keep this column order:
+For Workflow 2’s lookup, Slack reply, and delete logic to work, Sheet1 rows written by Workflow 1 should keep this column order:
 
 | Index | Meaning |
 |-------|---------|
@@ -142,4 +144,4 @@ For Workflow 2’s loop and delete logic to work, Sheet1 rows written by Workflo
 | 3 | Status text (`Open` while tracked) |
 | 4 | Submitter / fifth metadata column |
 
-Workflow 2 appends a **row index** internally for deletion (`currentItem[5]`; not an extra Sheet1 column).
+Workflow 2 relies on indexes `1` and `2` for the Slack thread and channel, and searches all row cells for an exact match to the Jira issue key or summary. It computes the matched row index internally for deletion; the row index is not an extra Sheet1 column.
